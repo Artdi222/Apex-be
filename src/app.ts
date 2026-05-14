@@ -11,6 +11,7 @@ import { equipmentController } from './modules/equipment/equipment.controller'
 import { schedulesController } from './modules/schedules/schedules.controller'
 import { bookingsController } from './modules/bookings/bookings.controller'
 import { ticketsController } from './modules/tickets/tickets.controller'
+import { incidentsController } from './modules/incidents/incidents.controller'
 import { uploadsController } from './modules/uploads/uploads.controller'
 
 const app = new Elysia({ prefix: '/api/v1' })
@@ -30,6 +31,7 @@ const app = new Elysia({ prefix: '/api/v1' })
                 { name: 'Schedules', description: 'Track schedule management' },
                 { name: 'Bookings', description: 'Booking management' },
                 { name: 'Tickets', description: 'Ticket and QR management' },
+                { name: 'Incidents', description: 'Incident reporting and management' },
                 { name: 'Uploads', description: 'File upload management' },
             ],
         },
@@ -43,6 +45,7 @@ const app = new Elysia({ prefix: '/api/v1' })
     .use(schedulesController)
     .use(bookingsController)
     .use(ticketsController)
+    .use(incidentsController)
     .use(uploadsController)
 
 export type App = typeof app
