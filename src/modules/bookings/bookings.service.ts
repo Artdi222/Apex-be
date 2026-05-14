@@ -3,6 +3,7 @@ import { bookingsRepository } from './bookings.repository';
 import { schedulesRepository } from '../schedules/schedules.repository';
 import { vehiclesRepository } from '../vehicles/vehicles.repository';
 import { equipmentRepository } from '../equipment/equipment.repository';
+import { settingsService } from '../settings/settings.service';
 import { AppError } from '../../shared/errors/app-error';
 import { ErrorCodes } from '../../shared/errors/error-codes';
 import { getPagination, getPaginationMeta } from '../../shared/utils/pagination';
@@ -20,10 +21,27 @@ const STATUS_TRANSITIONS: Record<string, string[]> = {
 
 export const bookingsService = {
   async createBooking(data: CreateBookingInput, userId: string) {
+    // Fetch all settings
+    const settings = await settingsService.getAllSettings();
+    const settingsMap = new Map(settings.map((s: any) => [s.key, s.value]));
+
     // Validate agreement
-    if (!data.agreement_accepted) {
+    const requireAgreement = settingsMap.get('booking.require_agreement');
+    if (requireAgreement && !data.agreement_accepted) {
       throw new AppError(
         'You must accept the agreement to create a booking',
+        400,
+        ErrorCodes.VALIDATION_ERROR
+      );
+    }
+
+    const participantsCount = data.participants_count || 1;
+
+    // Validate participants count against global limit
+    const maxParticipants = settingsMap.get('booking.max_participants');
+    if (participantsCount > maxParticipants) {
+      throw new AppError(
+        `Participants count exceeds the maximum allowed (${maxParticipants})`,
         400,
         ErrorCodes.VALIDATION_ERROR
       );
@@ -61,8 +79,6 @@ export const bookingsService = {
       );
     }
 
-    const participantsCount = data.participants_count || 1;
-
     if (slot.current_bookings + participantsCount > slot.max_capacity) {
       throw new AppError(
         `Schedule slot does not have enough capacity (available: ${slot.max_capacity - slot.current_bookings})`,
@@ -81,8 +97,11 @@ export const bookingsService = {
       );
     }
 
-    // Calculate session fee based on duration and slot type
-    const baseRate = slot.slot_type === 'exclusive' ? 500 : 150;
+    // Calculate session fee based on duration and slot type using settings
+    const baseRate = slot.slot_type === 'exclusive' 
+      ? Number(settingsMap.get('pricing.base_rate_exclusive')) 
+      : Number(settingsMap.get('pricing.base_rate_open'));
+    
     const sessionFee = baseRate * durationHours * participantsCount;
 
     // Validate vehicle models and auto-assign specific instances
@@ -158,18 +177,24 @@ export const bookingsService = {
 
     let subTotal = vehiclePrice + equipmentTotal + sessionFee;
     
-    // Apply weekend surge (20% increase)
+    // Apply weekend surge from settings
     const dayOfWeek = new Date(slot.date).getDay();
     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
     if (isWeekend) {
-      subTotal *= 1.2;
+      const surgePercent = Number(settingsMap.get('pricing.weekend_surge_percent'));
+      subTotal *= (1 + surgePercent / 100);
     }
 
-    // Add 10% tax
-    const totalPrice = subTotal * 1.10;
+    // Add tax from settings
+    const taxRate = Number(settingsMap.get('pricing.tax_rate'));
+    const totalPrice = subTotal * (1 + taxRate / 100);
 
     // Generate unique QR code token
     const qrCodeToken = nanoid(64);
+
+    // Initial status based on auto-confirm setting
+    const autoConfirm = settingsMap.get('booking.auto_confirm');
+    const initialStatus = autoConfirm ? 'confirmed' : 'pending';
 
     // Create booking
     const booking = await bookingsRepository.create({
@@ -180,6 +205,7 @@ export const bookingsService = {
       notes: data.notes || null,
       qr_code_token: qrCodeToken,
       agreement_accepted: data.agreement_accepted,
+      status: initialStatus,
     });
 
     // Add multiple instances to booking_vehicles
@@ -264,6 +290,29 @@ export const bookingsService = {
     // Users can only cancel their own bookings
     if (role === 'user' && booking.user_id !== userId) {
       throw new AppError('Forbidden', 403, ErrorCodes.FORBIDDEN);
+    }
+
+    // Validate cancellation window if role is user
+    if (role === 'user') {
+      const cancellationHoursSetting = await settingsService.getSetting('booking.cancellation_hours');
+      const hoursLimit = Number(cancellationHoursSetting.value);
+      
+      const slotDate = new Date(booking.schedule_slot!.date);
+      const [startH, startM] = booking.schedule_slot!.start_time.split(':').map(Number);
+      const startTime = new Date(slotDate.getTime());
+      startTime.setHours(startH, startM, 0, 0);
+      
+      const now = new Date();
+      const diffMs = startTime.getTime() - now.getTime();
+      const diffHours = diffMs / (1000 * 60 * 60);
+
+      if (diffHours < hoursLimit) {
+        throw new AppError(
+          `Cancellations must be made at least ${hoursLimit} hours in advance`,
+          400,
+          ErrorCodes.VALIDATION_ERROR
+        );
+      }
     }
 
     this.validateTransition(booking.status, 'cancelled');

@@ -41,8 +41,8 @@ const adminRoutes = new Elysia()
   // Create Model + Initial Instances (Bulk)
   .post(
     '/',
-    async ({ body }) => {
-      const vehicle = await vehiclesService.createVehicleWithStock(body);
+    async ({ body, user }) => {
+      const vehicle = await vehiclesService.createVehicleWithStock(body, user.id);
       return wrapResponse(vehicle);
     },
     { body: CreateVehicleDTO }
@@ -50,8 +50,8 @@ const adminRoutes = new Elysia()
   // Update Model Details
   .put(
     '/:id',
-    async ({ params, body }) => {
-      const vehicle = await vehiclesService.updateVehicleModel(params.id, body);
+    async ({ params, body, user }) => {
+      const vehicle = await vehiclesService.updateVehicleModel(params.id, body, user.id);
       return wrapResponse(vehicle);
     },
     {
@@ -62,8 +62,8 @@ const adminRoutes = new Elysia()
   // Update Specific Car Instance
   .put(
     '/instances/:id',
-    async ({ params, body }) => {
-      const instance = await vehiclesService.updateVehicleInstance(params.id, body);
+    async ({ params, body, user }) => {
+      const instance = await vehiclesService.updateVehicleInstance(params.id, body, user.id);
       return wrapResponse(instance);
     },
     {
@@ -79,8 +79,8 @@ const superadminRoutes = new Elysia()
   // Delete whole model
   .delete(
     '/:id',
-    async ({ params }) => {
-      await vehiclesService.deleteVehicleModel(params.id);
+    async ({ params, user }) => {
+      await vehiclesService.deleteVehicleModel(params.id, user.id);
       return wrapResponse({ message: 'Vehicle model deleted successfully' });
     },
     { params: t.Object({ id: t.String({ format: 'uuid' }) }) }
@@ -88,8 +88,8 @@ const superadminRoutes = new Elysia()
   // Delete specific instance
   .delete(
     '/instances/:id',
-    async ({ params }) => {
-      await vehiclesService.deleteVehicleInstance(params.id);
+    async ({ params, user }) => {
+      await vehiclesService.deleteVehicleInstance(params.id, user.id);
       return wrapResponse({ message: 'Vehicle instance deleted successfully' });
     },
     { params: t.Object({ id: t.String({ format: 'uuid' }) }) }

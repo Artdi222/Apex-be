@@ -45,8 +45,8 @@ export const equipmentController = new Elysia({ prefix: '/equipment' })
   .use(requireRole(ROLES.ALL_ADMINS))
   .post(
     '/',
-    async ({ body }) => {
-      const equipment = await equipmentService.createEquipment(body);
+    async ({ body, user }) => {
+      const equipment = await equipmentService.createEquipment(body, user.id);
       return wrapResponse(equipment);
     },
     {
@@ -56,8 +56,8 @@ export const equipmentController = new Elysia({ prefix: '/equipment' })
   )
   .put(
     '/:id',
-    async ({ params, body }) => {
-      const equipment = await equipmentService.updateEquipment(params.id, body);
+    async ({ params, body, user }) => {
+      const equipment = await equipmentService.updateEquipment(params.id, body, user.id);
       return wrapResponse(equipment);
     },
     {
@@ -68,8 +68,8 @@ export const equipmentController = new Elysia({ prefix: '/equipment' })
   )
   .post(
     '/:id/images',
-    async ({ params, body }) => {
-      const equipment = await equipmentService.uploadImages(params.id, body.images);
+    async ({ params, body, user }) => {
+      const equipment = await equipmentService.uploadImages(params.id, body.images, user.id);
       return wrapResponse(equipment);
     },
     {
@@ -84,8 +84,8 @@ export const equipmentController = new Elysia({ prefix: '/equipment' })
       .use(requireRole(ROLES.ONLY_SUPERADMIN))
       .delete(
         '/:id',
-        async ({ params }) => {
-          const result = await equipmentService.deleteEquipment(params.id);
+        async ({ params, user }) => {
+          const result = await equipmentService.deleteEquipment(params.id, user.id);
           return wrapResponse(result);
         },
         {

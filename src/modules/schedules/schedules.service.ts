@@ -1,4 +1,5 @@
 import { schedulesRepository } from './schedules.repository';
+import { settingsService } from '../settings/settings.service';
 import { AppError } from '../../shared/errors/app-error';
 import { ErrorCodes } from '../../shared/errors/error-codes';
 import { getPagination, getPaginationMeta } from '../../shared/utils/pagination';
@@ -42,7 +43,7 @@ export const schedulesService = {
     return slot;
   },
 
-  async createSlot(data: CreateScheduleSlotInput) {
+  async createSlot(data: CreateScheduleSlotInput, userId: string) {
     // Validate time range
     if (data.start_time >= data.end_time) {
       throw new AppError(
@@ -68,10 +69,18 @@ export const schedulesService = {
     }
 
     const slot = await schedulesRepository.create(data);
+
+    await settingsService.createAuditLog({
+      user_id: userId,
+      action: 'create_slot',
+      entity: 'schedule_slots',
+      entity_id: slot.id,
+    });
+
     return slot;
   },
 
-  async updateSlot(id: string, data: UpdateScheduleSlotInput) {
+  async updateSlot(id: string, data: UpdateScheduleSlotInput, userId: string) {
     const existing = await schedulesRepository.findById(id);
 
     if (!existing) {
@@ -122,10 +131,18 @@ export const schedulesService = {
     if (!updated) {
       throw new AppError('Failed to update schedule slot', 500, ErrorCodes.INTERNAL_ERROR);
     }
+
+    await settingsService.createAuditLog({
+      user_id: userId,
+      action: 'update_slot',
+      entity: 'schedule_slots',
+      entity_id: id,
+    });
+
     return updated;
   },
 
-  async deleteSlot(id: string) {
+  async deleteSlot(id: string, userId: string) {
     const existing = await schedulesRepository.findById(id);
 
     if (!existing) {
@@ -149,9 +166,16 @@ export const schedulesService = {
         ErrorCodes.INTERNAL_ERROR
       );
     }
+
+    await settingsService.createAuditLog({
+      user_id: userId,
+      action: 'delete_slot',
+      entity: 'schedule_slots',
+      entity_id: id,
+    });
   },
 
-  async generateSlots(data: GenerateSlotsInput) {
+  async generateSlots(data: GenerateSlotsInput, userId: string) {
     // Validate date range
     if (data.date_from > data.date_to) {
       throw new AppError(
@@ -173,6 +197,13 @@ export const schedulesService = {
     const startDate = new Date(data.date_from);
     const endDate = new Date(data.date_to);
 
+    // Fetch defaults from settings
+    const defaultDuration = await settingsService.getSetting('schedule.default_slot_duration_minutes');
+    const defaultCapacity = await settingsService.getSetting('schedule.default_max_capacity');
+
+    const slotDuration = data.slot_duration_minutes || Number(defaultDuration.value);
+    const maxCapacity = data.max_capacity || Number(defaultCapacity.value);
+
     // Generate slots for each day in range
     for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
       const dayOfWeek = d.getDay();
@@ -192,10 +223,10 @@ export const schedulesService = {
       const dayStartMinutes = startHour * 60 + startMin;
       const dayEndMinutes = endHour * 60 + endMin;
 
-      for (let t = dayStartMinutes; t + data.slot_duration_minutes <= dayEndMinutes; t += data.slot_duration_minutes) {
+      for (let t = dayStartMinutes; t + slotDuration <= dayEndMinutes; t += slotDuration) {
         const slotStartHour = Math.floor(t / 60);
         const slotStartMin = t % 60;
-        const slotEndMin = t + data.slot_duration_minutes;
+        const slotEndMin = t + slotDuration;
         const slotEndHour = Math.floor(slotEndMin / 60);
         const slotEndMinute = slotEndMin % 60;
 
@@ -207,7 +238,7 @@ export const schedulesService = {
           start_time: slotStart,
           end_time: slotEnd,
           slot_type: data.slot_type || 'open',
-          max_capacity: data.max_capacity || 6,
+          max_capacity: maxCapacity,
         });
       }
     }
@@ -221,6 +252,12 @@ export const schedulesService = {
     }
 
     const created = await schedulesRepository.createMany(slots);
+
+    await settingsService.createAuditLog({
+      user_id: userId,
+      action: 'generate_slots',
+      entity: 'schedule_slots',
+    });
 
     return {
       generated: slots.length,

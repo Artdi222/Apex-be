@@ -3,6 +3,7 @@ import { ErrorCodes } from '../../shared/errors/error-codes';
 import { getPagination, getPaginationMeta } from '../../shared/utils/pagination';
 import { saveFile } from '../../shared/utils/file-upload';
 import { equipmentRepository } from './equipment.repository';
+import { settingsService } from '../settings/settings.service';
 import type { CreateEquipmentInput, UpdateEquipmentInput, ListEquipmentQuery } from './equipment.dto';
 
 const EQUIPMENT_CATEGORIES = ['helmet', 'suit', 'gloves', 'shoes', 'hans_device', 'other'] as const;
@@ -42,7 +43,7 @@ export const equipmentService = {
     return EQUIPMENT_CATEGORIES;
   },
 
-  async createEquipment(data: CreateEquipmentInput) {
+  async createEquipment(data: CreateEquipmentInput, userId: string) {
     const input = {
       ...data,
       available_quantity: data.available_quantity ?? data.stock_quantity,
@@ -56,10 +57,19 @@ export const equipmentService = {
       );
     }
 
-    return equipmentRepository.create(input);
+    const equipment = await equipmentRepository.create(input);
+
+    await settingsService.createAuditLog({
+      user_id: userId,
+      action: 'create_equipment',
+      entity: 'equipment',
+      entity_id: equipment.id,
+    });
+
+    return equipment;
   },
 
-  async updateEquipment(id: string, data: UpdateEquipmentInput) {
+  async updateEquipment(id: string, data: UpdateEquipmentInput, userId: string) {
     const existing = await equipmentRepository.findById(id);
 
     if (!existing) {
@@ -83,10 +93,17 @@ export const equipmentService = {
       throw new AppError('Failed to update equipment', 500, ErrorCodes.INTERNAL_ERROR);
     }
 
+    await settingsService.createAuditLog({
+      user_id: userId,
+      action: 'update_equipment',
+      entity: 'equipment',
+      entity_id: id,
+    });
+
     return updated;
   },
 
-  async deleteEquipment(id: string) {
+  async deleteEquipment(id: string, userId: string) {
     const existing = await equipmentRepository.findById(id);
 
     if (!existing) {
@@ -99,10 +116,17 @@ export const equipmentService = {
       throw new AppError('Failed to delete equipment', 500, ErrorCodes.INTERNAL_ERROR);
     }
 
+    await settingsService.createAuditLog({
+      user_id: userId,
+      action: 'delete_equipment',
+      entity: 'equipment',
+      entity_id: id,
+    });
+
     return { message: 'Equipment deleted successfully' };
   },
 
-  async uploadImages(id: string, files: File[]) {
+  async uploadImages(id: string, files: File[], userId: string) {
     const existing = await equipmentRepository.findById(id);
 
     if (!existing) {
@@ -124,6 +148,13 @@ export const equipmentService = {
     if (!updated) {
       throw new AppError('Failed to update equipment images', 500, ErrorCodes.INTERNAL_ERROR);
     }
+
+    await settingsService.createAuditLog({
+      user_id: userId,
+      action: 'upload_equipment_images',
+      entity: 'equipment',
+      entity_id: id,
+    });
 
     return updated;
   },
