@@ -60,8 +60,8 @@ const adminRoutes = new Elysia()
   .use(requireRole(ROLES.ALL_ADMINS))
   .post(
     '/',
-    async ({ body }) => {
-      const slot = await schedulesService.createSlot(body);
+    async ({ body, user }) => {
+      const slot = await schedulesService.createSlot(body, user.id);
       return wrapResponse(slot);
     },
     { 
@@ -75,8 +75,8 @@ const adminRoutes = new Elysia()
   )
   .put(
     '/:id',
-    async ({ params, body }) => {
-      const slot = await schedulesService.updateSlot(params.id, body);
+    async ({ params, body, user }) => {
+      const slot = await schedulesService.updateSlot(params.id, body, user.id);
       return wrapResponse(slot);
     },
     {
@@ -91,8 +91,8 @@ const adminRoutes = new Elysia()
   )
   .delete(
     '/:id',
-    async ({ params }) => {
-      await schedulesService.deleteSlot(params.id);
+    async ({ params, user }) => {
+      await schedulesService.deleteSlot(params.id, user.id);
       return wrapResponse({ message: 'Schedule slot deleted successfully' });
     },
     { 
@@ -106,8 +106,8 @@ const adminRoutes = new Elysia()
   )
   .post(
     '/generate',
-    async ({ body }) => {
-      const result = await schedulesService.generateSlots(body);
+    async ({ body, user }) => {
+      const result = await schedulesService.generateSlots(body, user.id);
       return wrapResponse(result);
     },
     { 

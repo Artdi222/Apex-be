@@ -41,7 +41,8 @@ export const BookingResponseDTO = t.Object({
   created_at: t.Any(),
   user: t.Optional(t.Object({
     username: t.String(),
-    email: t.String()
+    email: t.String(),
+    avatar_url: t.Optional(t.Nullable(t.String()))
   })),
   schedule_slot: t.Optional(t.Object({
     date: t.Any(),

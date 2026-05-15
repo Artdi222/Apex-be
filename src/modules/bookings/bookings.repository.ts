@@ -58,6 +58,7 @@ export const bookingsRepository = {
       SELECT b.*,
              u.username as user_username,
              u.email as user_email,
+             u.avatar_url as user_avatar_url,
              s.date as slot_date,
              s.start_time as slot_start_time,
              s.end_time as slot_end_time,
@@ -91,7 +92,8 @@ export const bookingsRepository = {
       ...row,
       user: {
         username: row.user_username,
-        email: row.user_email
+        email: row.user_email,
+        avatar_url: row.user_avatar_url
       },
       schedule_slot: {
         date: row.slot_date,
@@ -121,6 +123,7 @@ export const bookingsRepository = {
       SELECT b.*,
              u.username as user_username,
              u.email as user_email,
+             u.avatar_url as user_avatar_url,
              s.date as slot_date,
              s.start_time as slot_start_time,
              s.end_time as slot_end_time,
@@ -149,7 +152,8 @@ export const bookingsRepository = {
       ...row,
       user: {
         username: row.user_username,
-        email: row.user_email
+        email: row.user_email,
+        avatar_url: row.user_avatar_url
       },
       schedule_slot: {
         date: row.slot_date,
@@ -172,6 +176,7 @@ export const bookingsRepository = {
       SELECT b.*,
              u.username as user_username,
              u.email as user_email,
+             u.avatar_url as user_avatar_url,
              s.date as slot_date,
              s.start_time as slot_start_time,
              s.end_time as slot_end_time,
@@ -200,7 +205,8 @@ export const bookingsRepository = {
       ...row,
       user: {
         username: row.user_username,
-        email: row.user_email
+        email: row.user_email,
+        avatar_url: row.user_avatar_url
       },
       schedule_slot: {
         date: row.slot_date,
@@ -218,11 +224,12 @@ export const bookingsRepository = {
     notes: string | null;
     qr_code_token: string;
     agreement_accepted: boolean;
+    status?: string;
   }): Promise<Booking> {
     const rows = await db`
       INSERT INTO bookings (
         user_id, schedule_slot_id, participants_count, total_price, notes,
-        qr_code_token, agreement_accepted, agreement_accepted_at
+        qr_code_token, agreement_accepted, agreement_accepted_at, status
       )
       VALUES (
         ${data.user_id},
@@ -232,7 +239,8 @@ export const bookingsRepository = {
         ${data.notes},
         ${data.qr_code_token},
         ${data.agreement_accepted},
-        ${data.agreement_accepted ? new Date().toISOString() : null}
+        ${data.agreement_accepted ? new Date().toISOString() : null},
+        ${data.status || 'pending'}::booking_status
       )
       RETURNING *
     `;

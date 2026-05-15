@@ -3,6 +3,7 @@ import { AppError } from '../../shared/errors/app-error';
 import { ErrorCodes } from '../../shared/errors/error-codes';
 import { getPagination, getPaginationMeta } from '../../shared/utils/pagination';
 import { saveFile, deleteFile } from '../../shared/utils/file-upload';
+import { settingsService } from '../settings/settings.service';
 import type { UpdateProfileInput, ListUsersQuery } from './users.dto';
 import type { UserRole } from '../../shared/types';
 
@@ -64,23 +65,57 @@ export const usersService = {
     return user;
   },
 
-  async changeRole(id: string, role: UserRole) {
+  async changeRole(id: string, role: UserRole, adminId: string, adminRole?: UserRole) {
+    if (id === adminId) {
+      throw new AppError('You cannot change your own role', 400, ErrorCodes.BAD_REQUEST);
+    }
+
     const user = await usersRepository.findById(id);
     if (!user) {
       throw new AppError('User not found', 404, ErrorCodes.NOT_FOUND);
+    }
+
+    // STRICT: Only superadmins can change ANY roles
+    if (adminRole !== 'superadmin') {
+      throw new AppError('Only superadmins can change user roles', 403, ErrorCodes.FORBIDDEN);
     }
 
     const updated = await usersRepository.updateRole(id, role);
+
+    await settingsService.createAuditLog({
+      user_id: adminId,
+      action: 'change_user_role',
+      entity: 'users',
+      entity_id: id,
+    });
+
     return updated;
   },
 
-  async changeStatus(id: string, isActive: boolean) {
+  async changeStatus(id: string, isActive: boolean, adminId: string, adminRole?: UserRole) {
+    if (id === adminId) {
+      throw new AppError('You cannot change your own status', 400, ErrorCodes.BAD_REQUEST);
+    }
+
     const user = await usersRepository.findById(id);
     if (!user) {
       throw new AppError('User not found', 404, ErrorCodes.NOT_FOUND);
     }
 
+    // Normal admins cannot deactivate superadmins
+    if (user.role === 'superadmin' && adminRole !== 'superadmin') {
+      throw new AppError('Only superadmins can manage superadmin status', 403, ErrorCodes.FORBIDDEN);
+    }
+
     const updated = await usersRepository.updateStatus(id, isActive);
+
+    await settingsService.createAuditLog({
+      user_id: adminId,
+      action: 'change_user_status',
+      entity: 'users',
+      entity_id: id,
+    });
+
     return updated;
   },
 };

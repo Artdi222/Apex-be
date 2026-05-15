@@ -75,8 +75,8 @@ export const usersController = new Elysia({ prefix: '/users' })
   // PUT /users/:id/status — Activate/deactivate (Admin, Superadmin)
   .put(
     '/:id/status',
-    async ({ params, body }) => {
-      const updated = await usersService.changeStatus(params.id, body.is_active);
+    async ({ params, body, user }) => {
+      const updated = await usersService.changeStatus(params.id, body.is_active, user.id, user.role);
       return wrapResponse(updated);
     },
     {
@@ -91,8 +91,8 @@ export const usersController = new Elysia({ prefix: '/users' })
   .use(requireRole(ROLES.ONLY_SUPERADMIN))
   .put(
     '/:id/role',
-    async ({ params, body }) => {
-      const updated = await usersService.changeRole(params.id, body.role);
+    async ({ params, body, user }) => {
+      const updated = await usersService.changeRole(params.id, body.role, user.id, user.role);
       return wrapResponse(updated);
     },
     {

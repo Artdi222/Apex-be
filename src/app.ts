@@ -13,6 +13,8 @@ import { bookingsController } from './modules/bookings/bookings.controller'
 import { ticketsController } from './modules/tickets/tickets.controller'
 import { incidentsController } from './modules/incidents/incidents.controller'
 import { uploadsController } from './modules/uploads/uploads.controller'
+import { analyticsController } from './modules/analytics/analytics.controller'
+import { settingsController } from './modules/settings/settings.controller'
 
 const app = new Elysia({ prefix: '/api/v1' })
     .use(corsPlugin)
@@ -33,6 +35,8 @@ const app = new Elysia({ prefix: '/api/v1' })
                 { name: 'Tickets', description: 'Ticket and QR management' },
                 { name: 'Incidents', description: 'Incident reporting and management' },
                 { name: 'Uploads', description: 'File upload management' },
+                { name: 'Analytics', description: 'Dashboard analytics and reporting' },
+                { name: 'Settings', description: 'System settings management' },
             ],
         },
     }))
@@ -47,6 +51,8 @@ const app = new Elysia({ prefix: '/api/v1' })
     .use(ticketsController)
     .use(incidentsController)
     .use(uploadsController)
+    .use(analyticsController)
+    .use(settingsController)
 
 export type App = typeof app
 

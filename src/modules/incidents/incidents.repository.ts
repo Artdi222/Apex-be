@@ -29,9 +29,9 @@ export const incidentsRepository = {
     const rows = await db`
       SELECT 
         ir.*,
-        json_build_object('id', creator.id, 'username', creator.username, 'email', creator.email, 'role', creator.role) as created_by_user,
+        json_build_object('id', creator.id, 'username', creator.username, 'email', creator.email, 'role', creator.role, 'avatar_url', creator.avatar_url) as created_by_user,
         json_build_object('id', b.id, 'status', b.status, 'user_id', b.user_id, 'schedule_slot_id', b.schedule_slot_id, 'total_price', b.total_price, 'created_at', b.created_at) as booking,
-        json_build_object('id', u.id, 'username', u.username, 'email', u.email) as booking_user
+        json_build_object('id', u.id, 'username', u.username, 'email', u.email, 'avatar_url', u.avatar_url) as booking_user
       FROM incident_reports ir
       LEFT JOIN users creator ON ir.created_by = creator.id
       LEFT JOIN bookings b ON ir.booking_id = b.id
@@ -79,9 +79,9 @@ export const incidentsRepository = {
     const query = `
       SELECT 
         ir.*,
-        json_build_object('username', creator.username, 'role', creator.role) as created_by_user,
+        json_build_object('username', creator.username, 'role', creator.role, 'avatar_url', creator.avatar_url) as created_by_user,
         json_build_object('id', b.id, 'status', b.status, 'user_id', b.user_id) as booking,
-        json_build_object('username', u.username, 'email', u.email) as booking_user
+        json_build_object('username', u.username, 'email', u.email, 'avatar_url', u.avatar_url) as booking_user
       FROM incident_reports ir
       LEFT JOIN users creator ON ir.created_by = creator.id
       LEFT JOIN bookings b ON ir.booking_id = b.id
